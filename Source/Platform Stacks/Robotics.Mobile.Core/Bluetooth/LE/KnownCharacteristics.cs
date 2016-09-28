@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Robotics.Mobile.Core.Utils;
-using Newtonsoft.Json.Linq;
 using System.Reflection;
+using Newtonsoft.Json.Linq;
 
 namespace Robotics.Mobile.Core.Bluetooth.LE
 {
