@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Foundation;
 
 #if __UNIFIED__
 using CoreBluetooth;
@@ -15,13 +16,13 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 
 		protected CBService _nativeService;
 		protected CBPeripheral _parentDevice;
+		protected Device _parent;
 
-		public Service (CBService nativeService, CBPeripheral parentDevice )
+		public Service (CBService nativeService, Device parent)
 		{
 			this._nativeService = nativeService;
-			this._parentDevice = parentDevice;
-
-
+			this._parent = parent;
+			this._parentDevice = this._parent.NativeDevice as CBPeripheral;
 		}
 
 		public Guid ID {
@@ -47,7 +48,45 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 		//TODO: decide how to Interface this, right now it's only in the iOS implementation
 		public void DiscoverCharacteristics()
 		{
-			// TODO: need to raise the event and listen for it.
+/*
+			EventHandler<CBServiceEventArgs> characteristicHandler = null;
+			#if __UNIFIED__
+			// fixed for Unified https://bugzilla.xamarin.com/show_bug.cgi?id=14893
+			characteristicHandler = (object sender, CBServiceEventArgs e) => {
+			#else
+			//BUGBUG/TODO: this event is misnamed in our SDK
+			characteristicHandler = (object sender, NSErrorEventArgs e) => {
+			#endif
+				this._parentDevice.DiscoveredCharacteristic -= characteristicHandler;
+				Console.WriteLine ("Device.Discovered Characteristics.");
+				//loop through each service, and update the characteristics
+				foreach (CBService srv in ((CBPeripheral)sender).Services) {
+					// if the service has characteristics yet
+					if(srv.Characteristics != null) {
+
+						// locate the our new service
+						foreach (var item in this._parent.Services) {
+							// if we found the service
+							if (item.ID == Service.ServiceUuidToGuid(srv.UUID) ) {
+								item.Characteristics.Clear();
+
+								// add the discovered characteristics to the particular service
+								foreach (var characteristic in srv.Characteristics) {
+									Console.WriteLine("Characteristic: " + characteristic.Description);
+									Characteristic newChar = new Characteristic(characteristic, _parentDevice);
+									item.Characteristics.Add(newChar);
+								}
+								// inform the service that the characteristics have been discovered
+								// TODO: really, we shoul just be using a notifying collection.
+								(item as Service).OnCharacteristicsDiscovered();
+							}
+						}
+					}
+				}			
+			};
+
+			this._parentDevice.DiscoveredCharacteristic += characteristicHandler;
+*/
 			this._parentDevice.DiscoverCharacteristics ( this._nativeService );
 		}
 

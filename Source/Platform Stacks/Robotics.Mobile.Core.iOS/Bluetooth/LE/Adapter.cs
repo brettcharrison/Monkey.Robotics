@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Collections;
 
 #if __UNIFIED__
 using CoreBluetooth;
@@ -78,6 +79,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 
 			_central.ConnectedPeripheral += (object sender, CBPeripheralEventArgs e) => {
 				Console.WriteLine ("ConnectedPeripheral: " + e.Peripheral.Name);
+				this._isConnecting = false;
 
 				// when a peripheral gets connected, add that peripheral to our running list of connected peripherals
 				if(!ContainsDevice(this._connectedDevices, e.Peripheral ) ){
@@ -130,6 +132,39 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 			}
 		}
 
+		public void RetrieveKnownDevice(List<string> deviceUuids)
+		{
+			this._isScanning = true;
+
+			// clear out the list
+			this._discoveredDevices = new List<IDevice> ();
+
+			List<Foundation.NSUuid> nsUuids = new List<Foundation.NSUuid>();
+
+			foreach (string uuid in deviceUuids)
+			{
+				var nsUuid = new Foundation.NSUuid(uuid);
+				nsUuids.Add(nsUuid);
+			}
+			
+			var list = this._central.RetrievePeripheralsWithIdentifiers(nsUuids.ToArray());
+
+			foreach(CBPeripheral p in list)
+			{
+				Device d = new Device(p);
+				if(!ContainsDevice(this._discoveredDevices, p ) ){
+					this._discoveredDevices.Add (d);
+					this.DeviceDiscovered(this, new DeviceDiscoveredEventArgs() { Device = d });
+				}
+			}
+
+			Console.WriteLine (string.Format("RetrieveKnownDevice Count: {0}", list.Length));
+			this._isScanning = false;
+			this._central.StopScan ();
+			this.ScanTimeoutElapsed (this, new EventArgs ());
+			return;
+		}
+
 		public async void StartScanningForDevices (Guid serviceUuid)
 		{
 			//
@@ -172,21 +207,21 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 			this._central.StopScan ();
 		}
 
-		public void ConnectToDevice (IDevice device)
+		public async void ConnectToDevice (IDevice device)
 		{
-			//TODO: if it doesn't connect after 10 seconds, cancel the operation
-			// (follow the same model we do for scanning).
+			this._isConnecting = true;
 			this._central.ConnectPeripheral (device.NativeDevice as CBPeripheral, new PeripheralConnectionOptions());
 				
-//			// in 10 seconds, stop the connection
-//			await Task.Delay (10000);
-//
+			// in 10 seconds, stop the connection
+			await Task.Delay (5000);
+
 //			// if we're still trying to connect
-//			if (this._isConnecting) {
-//				Console.WriteLine ("BluetoothLEManager: Connect timeout has elapsed.");
-//				this._central.
-//				this.ConnectTimeoutElapsed (this, new EventArgs ());
-//			}
+			if (this._isConnecting) {
+				Console.WriteLine ("BluetoothLEManager: Connect timeout has elapsed.");
+				this._isConnecting = false;
+				this._central.CancelPeripheralConnection(device.NativeDevice as CBPeripheral);
+				this.ConnectTimeoutElapsed (this, new EventArgs ());
+			}
 		}
 			
 		public void DisconnectDevice (IDevice device)

@@ -15,6 +15,7 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 		public event EventHandler<DeviceConnectionEventArgs> DeviceConnected = delegate {};
 		public event EventHandler<DeviceConnectionEventArgs> DeviceDisconnected = delegate {};
 		public event EventHandler ScanTimeoutElapsed = delegate {};
+		public event EventHandler ConnectTimeoutElapsed = delegate {};
 
 		// class members
 		protected BluetoothManager _manager;
@@ -38,6 +39,15 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 		} protected IList<IDevice> _connectedDevices = new List<IDevice>();
 
 
+		public static Adapter Current
+		{ get { return _current; } }
+		private static Adapter _current;
+
+		static Adapter ()
+		{
+			_current = new Adapter ();
+		}
+
 		public Adapter ()
 		{
 			var appContext = Android.App.Application.Context;
@@ -58,6 +68,40 @@ namespace Robotics.Mobile.Core.Bluetooth.LE
 				//if(this._connectedDevices.Contains(
 				this.DeviceDisconnected (this, e);
 			};
+		}
+
+		public void RetrieveKnownDevice(List<string> deviceUuids)
+		{
+			this._isScanning = true;
+
+			// clear out the list
+			this._discoveredDevices = new List<IDevice> ();
+/*
+			List<Foundation.NSUuid> nsUuids = new List<Foundation.NSUuid>();
+
+			foreach (string uuid in deviceUuids)
+			{
+				var nsUuid = new Foundation.NSUuid(uuid);
+				nsUuids.Add(nsUuid);
+			}
+			
+			var list = this._central.RetrievePeripheralsWithIdentifiers(nsUuids.ToArray());
+
+			foreach(CBPeripheral p in list)
+			{
+				Device d = new Device(p);
+				if(!ContainsDevice(this._discoveredDevices, p ) ){
+					this._discoveredDevices.Add (d);
+					this.DeviceDiscovered(this, new DeviceDiscoveredEventArgs() { Device = d });
+				}
+			}
+
+			Console.WriteLine (string.Format("RetrieveKnownDevice Count: {0}", list.Length));
+*/
+			this._isScanning = false;
+			//this._adapter.StopLeScan(this);
+			this.ScanTimeoutElapsed (this, new EventArgs ());
+			return;
 		}
 
 		//TODO: scan for specific service type eg. HeartRateMonitor
